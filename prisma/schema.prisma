@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  subdomain       String    @unique
+  role            String    @default("user")
+  isSuspended     Boolean   @default(false)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  portfolio Portfolio?
+  projects  Project[]
+}
+
+model Portfolio {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  bio             String   @default("")
+  headline        String   @default("")
+  skills          String   @default("[]")
+  socialLinks     String   @default("{}")
+  templateId      String   @default("minimal")
+  customization   String   @default("{}")
+  seo             String   @default("{}")
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id                 String   @id @default(cuid())
+  userId             String
+  title              String
+  description        String   @default("")
+  mediaType          String
+  mediaUrl           String
+  thumbnailUrl       String   @default("")
+  cloudinaryPublicId String?
+  externalPlatform   String?
+  externalVideoId    String?
+  tags               String   @default("[]")
+  projectUrl         String?
+  githubUrl          String?
+  order              Int      @default(0)
+  isVisible          Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

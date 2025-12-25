@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { User } from '@/lib/models';
+import prisma from '@/lib/db';
 
 export async function GET(
     request: NextRequest,
@@ -9,9 +8,9 @@ export async function GET(
     try {
         const { subdomain } = await params;
 
-        await connectDB();
-
-        const existingUser = await User.findOne({ subdomain: subdomain.toLowerCase() });
+        const existingUser = await prisma.user.findUnique({
+            where: { subdomain: subdomain.toLowerCase() }
+        });
 
         return Response.json({
             success: true,

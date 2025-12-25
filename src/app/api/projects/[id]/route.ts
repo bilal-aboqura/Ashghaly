@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { Project } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { deleteFromCloudinary } from '@/lib/cloudinary';
 
@@ -19,9 +18,9 @@ export async function PUT(
         const { id } = await params;
         const updates = await request.json();
 
-        await connectDB();
-
-        const project = await Project.findOne({ _id: id, userId: user._id });
+        const project = await prisma.project.findFirst({
+            where: { id, userId: user.id }
+        });
 
         if (!project) {
             return Response.json(
@@ -30,25 +29,31 @@ export async function PUT(
             );
         }
 
-        // Filter allowed fields
-        const allowedFields = ['title', 'description', 'tags', 'projectUrl', 'githubUrl', 'isVisible', 'order'];
-        const filteredUpdates: any = {};
+        // Prepare update data
+        const updateData: any = {};
 
-        for (const field of allowedFields) {
-            if (updates[field] !== undefined) {
-                filteredUpdates[field] = updates[field];
-            }
-        }
+        if (updates.title !== undefined) updateData.title = updates.title;
+        if (updates.description !== undefined) updateData.description = updates.description;
+        if (updates.tags !== undefined) updateData.tags = JSON.stringify(updates.tags);
+        if (updates.projectUrl !== undefined) updateData.projectUrl = updates.projectUrl;
+        if (updates.githubUrl !== undefined) updateData.githubUrl = updates.githubUrl;
+        if (updates.isVisible !== undefined) updateData.isVisible = updates.isVisible;
+        if (updates.order !== undefined) updateData.order = updates.order;
 
-        const updatedProject = await Project.findByIdAndUpdate(
-            id,
-            filteredUpdates,
-            { new: true, runValidators: true }
-        );
+        const updatedProject = await prisma.project.update({
+            where: { id },
+            data: updateData
+        });
 
         return Response.json({
             success: true,
-            data: { project: updatedProject }
+            data: {
+                project: {
+                    ...updatedProject,
+                    _id: updatedProject.id,
+                    tags: JSON.parse(updatedProject.tags)
+                }
+            }
         });
     } catch (error: any) {
         console.error('Update project error:', error);
@@ -73,9 +78,9 @@ export async function DELETE(
         const { user } = result;
         const { id } = await params;
 
-        await connectDB();
-
-        const project = await Project.findOne({ _id: id, userId: user._id });
+        const project = await prisma.project.findFirst({
+            where: { id, userId: user.id }
+        });
 
         if (!project) {
             return Response.json(
@@ -90,7 +95,7 @@ export async function DELETE(
             await deleteFromCloudinary(project.cloudinaryPublicId, resourceType);
         }
 
-        await Project.findByIdAndDelete(id);
+        await prisma.project.delete({ where: { id } });
 
         return Response.json({
             success: true,

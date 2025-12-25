@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import connectDB from './db';
-import { User, IUser } from './models';
+import prisma from './db';
+import type { User } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me';
 
@@ -19,7 +19,7 @@ export function verifyToken(token: string): { id: string } | null {
     }
 }
 
-export async function getAuthUser(request: NextRequest): Promise<IUser | null> {
+export async function getAuthUser(request: NextRequest): Promise<User | null> {
     const authHeader = request.headers.get('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -33,8 +33,9 @@ export async function getAuthUser(request: NextRequest): Promise<IUser | null> {
         return null;
     }
 
-    await connectDB();
-    const user = await User.findById(decoded.id);
+    const user = await prisma.user.findUnique({
+        where: { id: decoded.id }
+    });
 
     if (!user || user.isSuspended) {
         return null;
@@ -43,7 +44,7 @@ export async function getAuthUser(request: NextRequest): Promise<IUser | null> {
     return user;
 }
 
-export async function requireAuth(request: NextRequest): Promise<{ user: IUser } | { error: Response }> {
+export async function requireAuth(request: NextRequest): Promise<{ user: User } | { error: Response }> {
     const user = await getAuthUser(request);
 
     if (!user) {
@@ -58,7 +59,7 @@ export async function requireAuth(request: NextRequest): Promise<{ user: IUser }
     return { user };
 }
 
-export async function requireAdmin(request: NextRequest): Promise<{ user: IUser } | { error: Response }> {
+export async function requireAdmin(request: NextRequest): Promise<{ user: User } | { error: Response }> {
     const result = await requireAuth(request);
 
     if ('error' in result) {

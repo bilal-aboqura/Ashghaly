@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { User, Portfolio } from '@/lib/models';
+import prisma from '@/lib/db';
 import { signToken } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await connectDB();
-
         // Check if email exists
-        const existingEmail = await User.findOne({ email: email.toLowerCase() });
+        const existingEmail = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() }
+        });
         if (existingEmail) {
             return Response.json(
                 { success: false, message: 'Email already registered' },
@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if subdomain exists
-        const existingSubdomain = await User.findOne({ subdomain: subdomain.toLowerCase() });
+        const existingSubdomain = await prisma.user.findUnique({
+            where: { subdomain: subdomain.toLowerCase() }
+        });
         if (existingSubdomain) {
             return Response.json(
                 { success: false, message: 'Subdomain already taken' },
@@ -34,27 +36,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 12);
+
         // Create user
-        const user = await User.create({
-            name,
-            email: email.toLowerCase(),
-            password,
-            subdomain: subdomain.toLowerCase()
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email: email.toLowerCase(),
+                password: hashedPassword,
+                subdomain: subdomain.toLowerCase()
+            }
         });
 
         // Create portfolio
-        await Portfolio.create({
-            userId: user._id,
-            templateId: 'minimal'
+        await prisma.portfolio.create({
+            data: {
+                userId: user.id,
+                templateId: 'minimal'
+            }
         });
 
-        const token = signToken(user._id.toString());
+        const token = signToken(user.id);
 
         return Response.json({
             success: true,
             data: {
                 user: {
-                    id: user._id,
+                    id: user.id,
                     name: user.name,
                     email: user.email,
                     subdomain: user.subdomain,

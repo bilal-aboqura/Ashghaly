@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { Project } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 
@@ -29,7 +28,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check file size (50MB for videos)
         if (file.size > 50 * 1024 * 1024) {
             return Response.json(
                 { success: false, message: 'File too large. Max 50MB.' },
@@ -39,32 +37,38 @@ export async function POST(request: NextRequest) {
 
         const buffer = Buffer.from(await file.arrayBuffer());
 
-        await connectDB();
-
         const uploadResult = await uploadToCloudinary(buffer, {
-            folder: `porty/${user._id}/videos`,
+            folder: `porty/${user.id}/videos`,
             resourceType: 'video'
         });
 
-        const projectCount = await Project.countDocuments({ userId: user._id });
+        const projectCount = await prisma.project.count({ where: { userId: user.id } });
 
-        const project = await Project.create({
-            userId: user._id,
-            title,
-            description,
-            mediaType: 'video_upload',
-            mediaUrl: uploadResult.url,
-            thumbnailUrl: uploadResult.thumbnailUrl || '',
-            cloudinaryPublicId: uploadResult.publicId,
-            tags: tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [],
-            projectUrl: projectUrl || undefined,
-            githubUrl: githubUrl || undefined,
-            order: projectCount
+        const project = await prisma.project.create({
+            data: {
+                userId: user.id,
+                title,
+                description,
+                mediaType: 'video_upload',
+                mediaUrl: uploadResult.url,
+                thumbnailUrl: uploadResult.thumbnailUrl || '',
+                cloudinaryPublicId: uploadResult.publicId,
+                tags: JSON.stringify(tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : []),
+                projectUrl: projectUrl || null,
+                githubUrl: githubUrl || null,
+                order: projectCount
+            }
         });
 
         return Response.json({
             success: true,
-            data: { project }
+            data: {
+                project: {
+                    ...project,
+                    _id: project.id,
+                    tags: JSON.parse(project.tags)
+                }
+            }
         });
     } catch (error: any) {
         console.error('Upload video error:', error);

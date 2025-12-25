@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { User, Portfolio, Project } from '@/lib/models';
+import prisma from '@/lib/db';
 
 export async function GET(
     request: NextRequest,
@@ -9,11 +8,11 @@ export async function GET(
     try {
         const { subdomain } = await params;
 
-        await connectDB();
-
-        const user = await User.findOne({
-            subdomain: subdomain.toLowerCase(),
-            isSuspended: false
+        const user = await prisma.user.findFirst({
+            where: {
+                subdomain: subdomain.toLowerCase(),
+                isSuspended: false
+            }
         });
 
         if (!user) {
@@ -23,22 +22,27 @@ export async function GET(
             );
         }
 
-        const portfolio = await Portfolio.findOne({
-            userId: user._id,
-            isPublished: true
+        const portfolio = await prisma.portfolio.findUnique({
+            where: { userId: user.id }
         });
 
-        if (!portfolio) {
+        if (!portfolio || !portfolio.isPublished) {
             return Response.json(
                 { success: false, message: 'Portfolio not found' },
                 { status: 404 }
             );
         }
 
-        const projects = await Project.find({
-            userId: user._id,
-            isVisible: true
-        }).sort({ order: 1, createdAt: -1 });
+        const projects = await prisma.project.findMany({
+            where: {
+                userId: user.id,
+                isVisible: true
+            },
+            orderBy: [
+                { order: 'asc' },
+                { createdAt: 'desc' }
+            ]
+        });
 
         return Response.json({
             success: true,
@@ -50,21 +54,21 @@ export async function GET(
                 portfolio: {
                     bio: portfolio.bio,
                     headline: portfolio.headline,
-                    skills: portfolio.skills,
-                    socialLinks: portfolio.socialLinks,
+                    skills: JSON.parse(portfolio.skills),
+                    socialLinks: JSON.parse(portfolio.socialLinks),
                     templateId: portfolio.templateId,
-                    customization: portfolio.customization,
-                    seo: portfolio.seo
+                    customization: JSON.parse(portfolio.customization),
+                    seo: JSON.parse(portfolio.seo)
                 },
                 projects: projects.map(p => ({
-                    _id: p._id,
+                    _id: p.id,
                     title: p.title,
                     description: p.description,
                     mediaType: p.mediaType,
                     mediaUrl: p.mediaUrl,
                     thumbnailUrl: p.thumbnailUrl,
                     externalPlatform: p.externalPlatform,
-                    tags: p.tags,
+                    tags: JSON.parse(p.tags),
                     projectUrl: p.projectUrl,
                     githubUrl: p.githubUrl
                 }))

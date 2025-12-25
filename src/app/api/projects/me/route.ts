@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { Project } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -13,14 +12,24 @@ export async function GET(request: NextRequest) {
 
         const { user } = result;
 
-        await connectDB();
+        const projects = await prisma.project.findMany({
+            where: { userId: user.id },
+            orderBy: [
+                { order: 'asc' },
+                { createdAt: 'desc' }
+            ]
+        });
 
-        const projects = await Project.find({ userId: user._id })
-            .sort({ order: 1, createdAt: -1 });
+        // Parse tags JSON for each project
+        const projectsData = projects.map(p => ({
+            ...p,
+            _id: p.id,
+            tags: JSON.parse(p.tags)
+        }));
 
         return Response.json({
             success: true,
-            data: { projects }
+            data: { projects: projectsData }
         });
     } catch (error: any) {
         console.error('Get projects error:', error);

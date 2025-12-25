@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { User, Portfolio, Project } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { deleteFromCloudinary } from '@/lib/cloudinary';
 
@@ -18,9 +17,7 @@ export async function PUT(
         const { id } = await params;
         const { action, reason, templateId } = await request.json();
 
-        await connectDB();
-
-        const user = await User.findById(id);
+        const user = await prisma.user.findUnique({ where: { id } });
 
         if (!user) {
             return Response.json(
@@ -30,10 +27,14 @@ export async function PUT(
         }
 
         if (action === 'suspend') {
-            user.isSuspended = true;
-            user.suspendedAt = new Date();
-            user.suspendedReason = reason || 'No reason provided';
-            await user.save();
+            await prisma.user.update({
+                where: { id },
+                data: {
+                    isSuspended: true,
+                    suspendedAt: new Date(),
+                    suspendedReason: reason || 'No reason provided'
+                }
+            });
 
             return Response.json({
                 success: true,
@@ -42,10 +43,14 @@ export async function PUT(
         }
 
         if (action === 'unsuspend') {
-            user.isSuspended = false;
-            user.suspendedAt = undefined;
-            user.suspendedReason = undefined;
-            await user.save();
+            await prisma.user.update({
+                where: { id },
+                data: {
+                    isSuspended: false,
+                    suspendedAt: null,
+                    suspendedReason: null
+                }
+            });
 
             return Response.json({
                 success: true,
@@ -54,11 +59,10 @@ export async function PUT(
         }
 
         if (action === 'changeTemplate' && templateId) {
-            await Portfolio.findOneAndUpdate(
-                { userId: id },
-                { templateId },
-                { new: true }
-            );
+            await prisma.portfolio.update({
+                where: { userId: id },
+                data: { templateId }
+            });
 
             return Response.json({
                 success: true,
@@ -92,9 +96,7 @@ export async function DELETE(
 
         const { id } = await params;
 
-        await connectDB();
-
-        const user = await User.findById(id);
+        const user = await prisma.user.findUnique({ where: { id } });
 
         if (!user) {
             return Response.json(
@@ -104,7 +106,7 @@ export async function DELETE(
         }
 
         // Delete user's projects and Cloudinary assets
-        const projects = await Project.find({ userId: id });
+        const projects = await prisma.project.findMany({ where: { userId: id } });
 
         for (const project of projects) {
             if (project.cloudinaryPublicId) {
@@ -113,9 +115,8 @@ export async function DELETE(
             }
         }
 
-        await Project.deleteMany({ userId: id });
-        await Portfolio.deleteOne({ userId: id });
-        await User.findByIdAndDelete(id);
+        // Delete user (cascade will delete portfolio and projects)
+        await prisma.user.delete({ where: { id } });
 
         return Response.json({
             success: true,

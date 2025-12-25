@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { User } from '@/lib/models';
+import prisma from '@/lib/db';
 import { signToken } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await connectDB();
-
-        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+        const user = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() }
+        });
 
         if (!user) {
             return Response.json(
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const isMatch = await user.comparePassword(password);
+        const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
             return Response.json(
@@ -41,13 +41,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const token = signToken(user._id.toString());
+        const token = signToken(user.id);
 
         return Response.json({
             success: true,
             data: {
                 user: {
-                    id: user._id,
+                    id: user.id,
                     name: user.name,
                     email: user.email,
                     subdomain: user.subdomain,

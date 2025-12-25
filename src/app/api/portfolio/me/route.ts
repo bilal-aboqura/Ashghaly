@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { Portfolio } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -13,20 +12,31 @@ export async function GET(request: NextRequest) {
 
         const { user } = result;
 
-        await connectDB();
-
-        let portfolio = await Portfolio.findOne({ userId: user._id });
+        let portfolio = await prisma.portfolio.findUnique({
+            where: { userId: user.id }
+        });
 
         if (!portfolio) {
-            portfolio = await Portfolio.create({
-                userId: user._id,
-                templateId: 'minimal'
+            portfolio = await prisma.portfolio.create({
+                data: {
+                    userId: user.id,
+                    templateId: 'minimal'
+                }
             });
         }
 
+        // Parse JSON fields
+        const portfolioData = {
+            ...portfolio,
+            skills: JSON.parse(portfolio.skills),
+            socialLinks: JSON.parse(portfolio.socialLinks),
+            customization: JSON.parse(portfolio.customization),
+            seo: JSON.parse(portfolio.seo)
+        };
+
         return Response.json({
             success: true,
-            data: { portfolio }
+            data: { portfolio: portfolioData }
         });
     } catch (error: any) {
         console.error('Get portfolio error:', error);
@@ -48,27 +58,39 @@ export async function PUT(request: NextRequest) {
         const { user } = result;
         const updates = await request.json();
 
-        // Filter allowed fields
-        const allowedFields = ['bio', 'headline', 'skills', 'socialLinks', 'templateId', 'customization', 'seo', 'isPublished'];
-        const filteredUpdates: any = {};
+        // Prepare update data
+        const updateData: any = {};
 
-        for (const field of allowedFields) {
-            if (updates[field] !== undefined) {
-                filteredUpdates[field] = updates[field];
+        if (updates.bio !== undefined) updateData.bio = updates.bio;
+        if (updates.headline !== undefined) updateData.headline = updates.headline;
+        if (updates.skills !== undefined) updateData.skills = JSON.stringify(updates.skills);
+        if (updates.socialLinks !== undefined) updateData.socialLinks = JSON.stringify(updates.socialLinks);
+        if (updates.templateId !== undefined) updateData.templateId = updates.templateId;
+        if (updates.customization !== undefined) updateData.customization = JSON.stringify(updates.customization);
+        if (updates.seo !== undefined) updateData.seo = JSON.stringify(updates.seo);
+        if (updates.isPublished !== undefined) updateData.isPublished = updates.isPublished;
+
+        const portfolio = await prisma.portfolio.upsert({
+            where: { userId: user.id },
+            update: updateData,
+            create: {
+                userId: user.id,
+                ...updateData
             }
-        }
+        });
 
-        await connectDB();
-
-        const portfolio = await Portfolio.findOneAndUpdate(
-            { userId: user._id },
-            filteredUpdates,
-            { new: true, upsert: true, runValidators: true }
-        );
+        // Parse JSON fields for response
+        const portfolioData = {
+            ...portfolio,
+            skills: JSON.parse(portfolio.skills),
+            socialLinks: JSON.parse(portfolio.socialLinks),
+            customization: JSON.parse(portfolio.customization),
+            seo: JSON.parse(portfolio.seo)
+        };
 
         return Response.json({
             success: true,
-            data: { portfolio }
+            data: { portfolio: portfolioData }
         });
     } catch (error: any) {
         console.error('Update portfolio error:', error);

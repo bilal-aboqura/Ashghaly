@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
             success: true,
             data: {
                 user: {
-                    id: user._id,
+                    id: user.id,
                     name: user.name,
                     email: user.email,
                     subdomain: user.subdomain,

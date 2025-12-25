@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import connectDB from '@/lib/db';
-import { Project } from '@/lib/models';
+import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { parseVideoUrl } from '@/lib/videoEmbed';
 
@@ -31,26 +30,32 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await connectDB();
+        const projectCount = await prisma.project.count({ where: { userId: user.id } });
 
-        const projectCount = await Project.countDocuments({ userId: user._id });
-
-        const project = await Project.create({
-            userId: user._id,
-            title: title || 'Untitled Video',
-            description: description || '',
-            mediaType: 'video_external',
-            mediaUrl: videoInfo.embedUrl,
-            thumbnailUrl: videoInfo.thumbnailUrl,
-            externalPlatform: videoInfo.platform,
-            externalVideoId: videoInfo.videoId,
-            tags: tags || [],
-            order: projectCount
+        const project = await prisma.project.create({
+            data: {
+                userId: user.id,
+                title: title || 'Untitled Video',
+                description: description || '',
+                mediaType: 'video_external',
+                mediaUrl: videoInfo.embedUrl,
+                thumbnailUrl: videoInfo.thumbnailUrl,
+                externalPlatform: videoInfo.platform,
+                externalVideoId: videoInfo.videoId,
+                tags: JSON.stringify(tags || []),
+                order: projectCount
+            }
         });
 
         return Response.json({
             success: true,
-            data: { project }
+            data: {
+                project: {
+                    ...project,
+                    _id: project.id,
+                    tags: JSON.parse(project.tags)
+                }
+            }
         });
     } catch (error: any) {
         console.error('Add external video error:', error);
