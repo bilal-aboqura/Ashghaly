@@ -23,7 +23,6 @@ Build stunning portfolio websites with custom subdomains. Each user gets their o
 
 ```bash
 # Install dependencies
-cd frontend
 npm install
 
 # Setup environment
@@ -36,7 +35,7 @@ npm run dev
 
 ## ⚙️ Environment Variables
 
-Create `frontend/.env.local`:
+Create `.env.local`:
 
 ```env
 # Database
@@ -56,48 +55,36 @@ NEXT_PUBLIC_BASE_DOMAIN=localhost
 
 ## 📚 API Endpoints
 
-All API routes are inside `frontend/src/app/api/`:
+All API routes are in `src/app/api/`:
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
+- `POST /api/auth/register` - Register
 - `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
+- `GET /api/auth/me` - Current user
 - `GET /api/auth/check-subdomain/:subdomain` - Check availability
 
 ### Portfolio
-- `GET /api/portfolio/me` - Get my portfolio
-- `PUT /api/portfolio/me` - Update portfolio
-- `GET /api/portfolio/:subdomain` - Get public portfolio
+- `GET/PUT /api/portfolio/me` - User portfolio
+- `GET /api/portfolio/:subdomain` - Public portfolio
 
 ### Projects
-- `GET /api/projects/me` - Get my projects
+- `GET /api/projects/me` - My projects
 - `POST /api/projects/upload/image` - Upload image
 - `POST /api/projects/upload/video` - Upload video
-- `POST /api/projects/external` - Add external video
-- `PUT /api/projects/:id` - Update project
-- `DELETE /api/projects/:id` - Delete project
+- `POST /api/projects/external` - External video
+- `PUT/DELETE /api/projects/:id` - Manage project
 
 ### Admin
-- `GET /api/admin/stats` - Platform statistics
-- `GET /api/admin/users` - List all users
-- `PUT /api/admin/user/:id` - Suspend/unsuspend/change template
-- `DELETE /api/admin/user/:id` - Delete user
-
-## 🎨 Templates
-
-1. **Minimal** - Clean developer-focused
-2. **Creative** - Bold colors, animations
-3. **Professional** - Corporate resume-style
+- `GET /api/admin/stats` - Stats
+- `GET /api/admin/users` - Users list
+- `PUT/DELETE /api/admin/user/:id` - Manage user
 
 ## 🚀 Deployment
 
 ```bash
-cd frontend
 npm run build
 npm start
 ```
-
-For production, set `NEXT_PUBLIC_BASE_DOMAIN` to your domain (e.g., `mysite.com`).
 
 ---
 
