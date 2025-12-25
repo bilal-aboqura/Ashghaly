@@ -1,0 +1,20 @@
+{
+  "name": "porty",
+  "version": "1.0.0",
+  "description": "Multi-Tenant SaaS Portfolio Platform",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "install:all": "cd frontend && npm install",
+    "lint": "cd frontend && npm run lint"
+  },
+  "keywords": [
+    "portfolio",
+    "saas",
+    "multi-tenant",
+    "nextjs"
+  ],
+  "author": "",
+  "license": "MIT"
+}
